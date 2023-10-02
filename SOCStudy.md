@@ -41,3 +41,45 @@ We should be careful about the ap_ctrl setting before Cosim.
 
 Lab 2  
 ===
+parts: xc7z020clg400-1
+
+整體流程:
+>1. 建立專案，複製檔案到相對位置 → add new
+source, testbench, top function (設定要與c code裡面一樣)→ directives → C simulation → C synthesis →
+Export RTL
+>2. 
+
+
+FIR.cpp組成:  
+fir_n11_maxi含有三個inputs, 一個output  
+inputs:  
+\*pn32HPInput: input data(此testbench為 從1到75，再下降到-75，再往上到75，每一步都差1。)  
+an32Coef[MAP_ALIGN_4INT]: taps，為運算用參數  
+regXferLeng: 輸入總bit數  
+output:  
+pn32HPOutput: 乘累加的最後結果  
+
+此code運行是將輸入存入register，並用pipeline的方式對an32Coef進行乘法，最後進行累加，累加結果就是輸出。  
+至於PYNQ的結果，則可以分析an32Coef的設計，可以注意到，an32Coef配上convultion的算法，可以發現這是一個延遲4個cycle，並且有個DC gain (約183) 的結果。這是因為input data是等差增加(到75)或減少(到-75)的，使乘累加的結果也是等差。  
+
+STREAM區別:
+由於加入了DMA的設計，input跟output是data一組一組的讀寫，因此需要增加了跟DMA的溝通command:  
+> line 24 value_t valTemp = pstrmInput->read();  
+> line 38 pstrmOutput->write(valTemp);  
+> line 39 if (valTemp.last) break;  
+
+
+DMA Block diagram: 要注意in要enable read channel, out要enable write channel.  
+
+遇到問題: 
+>1. 檔名不對: 請記得上傳所有需要用到的檔案，並確認python code的檔名。
+>2. 路徑問題: 目錄用\\取代\，路徑才會正確，並可以用絕對路徑。
+>3. fc和diff: fc是用於Windows上的指令，用來比對兩個檔案差異，diff則是用於Linux
+//>4. FIRTester Co-sim出現error: 由於FIRTester.cpp 會建一個NUM_SAMPLES * sizeof(int32_t) 的valuable，但這個值太大，導致co-sim無法執行。以下是我解決方式:  
+>(1) FIRTester.cpp line 39: NUM_SAMPLES * sizeof(int32_t) -> NUM_SAMPLES。   
+>(2) FIR.cpp line 14: (regXferLeng + (sizeof(int32_t) - 1)) / sizeof(int32_t) -> regXferLeng + ((sizeof(int32_t) - 1) / sizeof(int32_t)) 確保(1)改掉參數後，功能上還是等價 -> 待確認
+>5. 跑synthesis的時候，出現warning(The report is not created yet...): rpt檔開著，需要把視窗關掉。  
+
+觀察
+1. interface接口不太一樣  
+2. 使用的資源(FF、LUT等)也有些許不同 
