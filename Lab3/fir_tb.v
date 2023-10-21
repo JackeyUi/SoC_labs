@@ -222,6 +222,7 @@ module fir_tb
 
     reg start;
 
+    reg error_coef;
 
 
     initial begin
@@ -618,7 +619,6 @@ module fir_tb
 
 
 
-    reg error_coef;
 
     initial begin
 
